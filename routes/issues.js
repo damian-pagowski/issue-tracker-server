@@ -1,82 +1,199 @@
 const Issue = require("../models/issue");
 const Comment = require("../models/comment");
 const Counter = require("../models/counter");
+const passport = require("passport");
 
 module.exports = app => {
   app
     .get("/issues/projects", (req, res, next) => {
-      Issue.find()
-        .distinct("project")
-        .then(result => res.json(result))
-        .catch(error => next(error));
+      passport.authenticate("jwt", { session: false }, (err, user, info) => {
+        if (err) {
+          console.error(err);
+        }
+        if (info !== undefined) {
+          console.error(info.message);
+          res.status(403).send(info.message);
+        } else {
+          Issue.find()
+            .distinct("project")
+            .then(result => res.json(result))
+            .catch(error => next(error));
+        }
+      })(req, res, next);
     })
     .get("/issues/:project/search", (req, res, next) => {
-      const project = req.params.project;
-      const filter = { ...req.query, project };
-      Issue.find(filter)
-        .then(result => res.json(result))
-        .catch(error => next(error));
+      passport.authenticate("jwt", { session: false }, (err, user, info) => {
+        if (err) {
+          console.error(err);
+        }
+        if (info !== undefined) {
+          console.error(info.message);
+          res.status(403).send(info.message);
+        } else {
+          const project = req.params.project;
+          const filter = { ...req.query, project };
+          Issue.find(filter)
+            .then(result => res.json(result))
+            .catch(error => next(error));
+        }
+      })(req, res, next);
     })
     .get("/issues/:project", paginatedResults(Issue), (req, res, next) => {
-      try {
-        res.json(res.paginatedResults);
-      } catch (error) {
-        next(error);
-      }
+      passport.authenticate("jwt", { session: false }, (err, user, info) => {
+        if (err) {
+          console.error(err);
+        }
+        if (info !== undefined) {
+          console.error(info.message);
+          res.status(403).send(info.message);
+        } else {
+          try {
+            res.json(res.paginatedResults);
+          } catch (error) {
+            next(error);
+          }
+        }
+      })(req, res, next);
     })
     .get("/issues/details/:id", (req, res, next) => {
-      Issue.findById(req.params.id)
-        .then(result => res.json(result))
-        .catch(error => next(error));
+      passport.authenticate("jwt", { session: false }, (err, user, info) => {
+        if (err) {
+          console.error(err);
+        }
+        if (info !== undefined) {
+          console.error(info.message);
+          res.status(403).send(info.message);
+        } else {
+          Issue.findById(req.params.id)
+            .then(result => res.json(result))
+            .catch(error => next(error));
+        }
+      })(req, res, next);
     })
     .put("/issues/details/:_id", (req, res, next) => {
-      const { _id } = req.params;
-      const update = { ...req.body };
-      Issue.findByIdAndUpdate(_id, update)
-        .then(data => {
-          return res.json({ message: data });
-        })
-        .catch(error => next(error));
+      passport.authenticate("jwt", { session: false }, (err, user, info) => {
+        if (err) {
+          console.error(err);
+        }
+        if (info !== undefined) {
+          console.error(info.message);
+          res.status(403).send(info.message);
+        } else {
+          const { _id } = req.params;
+          const update = { ...req.body };
+          Issue.findByIdAndUpdate(_id, update)
+            .then(data => {
+              return res.json({ message: data });
+            })
+            .catch(error => next(error));
+        }
+      })(req, res, next);
     })
     .delete("/issues/details/:_id", (req, res, next) => {
-      const { _id } = req.params;
-      Issue.deleteOne({ _id })
-        .then(data => {
-          return res.json({ message: data });
-        })
-        .catch(error => next(error));
+      passport.authenticate("jwt", { session: false }, (err, user, info) => {
+        if (err) {
+          console.error(err);
+        }
+        if (info !== undefined) {
+          console.error(info.message);
+          res.status(403).send(info.message);
+        } else {
+          const { _id } = req.params;
+          Issue.deleteOne({ _id })
+            .then(data => {
+              return res.json({ message: data });
+            })
+            .catch(error => next(error));
+        }
+      })(req, res, next);
     })
     .post("/issues/:project", async (req, res, next) => {
-      const count = await getCountAndIncrease();
-      const project = req.params.project;
-      const issue_id = `${project}-${count}`;
-      const issue = new Issue({ ...req.body, project, issue_id });
-      issue
-        .save()
-        .then(data => {
-          res.json(data);
-        })
-        .catch(error => next(error));
+      passport.authenticate(
+        "jwt",
+        { session: false },
+        async (err, user, info) => {
+          if (err) {
+            console.error(err);
+          }
+          if (info !== undefined) {
+            console.error(info.message);
+            res.status(403).send(info.message);
+          } else {
+            const count = await getCountAndIncrease();
+            const project = req.params.project;
+            const issue_id = `${project}-${count}`;
+            const issue = new Issue({ ...req.body, project, issue_id });
+            issue
+              .save()
+              .then(data => {
+                res.json(data);
+              })
+              .catch(error => next(error));
+          }
+        }
+      )(req, res, next);
     })
     .post("/issues/:issueId/comments", (req, res, next) => {
-      const { issueId } = req.params;
-      const comment = { ...req.body, ...{ issue: issueId } };
-      Issue.findById(issueId)
-        .then(issue => issue.addComment(comment))
-        .then(comment => res.json(comment))
-        .catch(error => next(error));
+      passport.authenticate(
+        "jwt",
+        { session: false },
+        async (err, user, info) => {
+          if (err) {
+            console.error(err);
+          }
+          if (info !== undefined) {
+            console.error(info.message);
+            res.status(403).send(info.message);
+          } else {
+            const { issueId } = req.params;
+            const comment = { ...req.body, ...{ issue: issueId } };
+            Issue.findById(issueId)
+              .then(issue => issue.addComment(comment))
+              .then(comment => res.json(comment))
+              .catch(error => next(error));
+          }
+        }
+      )(req, res, next);
     })
     .delete("/issues/comments/:commentId", (req, res, next) => {
-      const { commentId, issueId } = req.params;
-      Comment.deleteOne({ _id: commentId })
-        .then(data => res.json({ message: data }))
-        .catch(error => next(error));
+      passport.authenticate(
+        "jwt",
+        { session: false },
+        async (err, user, info) => {
+          if (err) {
+            console.error(err);
+          }
+          if (info !== undefined) {
+            console.error(info.message);
+            res.status(403).send(info.message);
+          } else {
+            const { commentId, issueId } = req.params;
+            Comment.deleteOne({ _id: commentId })
+              .then(data => res.json({ message: data }))
+              .catch(error => next(error));
+          }
+        }
+      )(req, res, next);
     })
     .get("/issues/:issueId/comments", (req, res, next) => {
-      const { issueId } = req.params;
-      Comment.find({ issue: issueId })
-        .then(data => res.json(data))
-        .catch(error => next(error));
+      passport.authenticate(
+        "jwt",
+        { session: false },
+        async (err, user, info) => {
+          if (err) {
+            console.error(err);
+          }
+          if (info !== undefined) {
+            console.error(info.message);
+            res.status(403).send(info.message);
+          } else {
+            const { issueId } = req.params;
+            Comment.find({ issue: issueId })
+              .then(data => res.json(data))
+              .catch(error => next(error));
+          }
+        }
+      )(req, res, next);
     });
 
   function getCountAndIncrease() {
