@@ -80,6 +80,7 @@ const opts = {
 passport.use(
   "jwt",
   new JWTstrategy(opts, (jwt_payload, done) => {
+    console.log(jwt_payload);
     try {
       Users.findById(jwt_payload.id).then(user => {
         if (user) {
@@ -95,3 +96,11 @@ passport.use(
     }
   })
 );
+
+passport.serializeUser((user, done) => done(null, user.id));
+
+passport.deserializeUser((id, done) => {
+  Users.findById(jwt_payload.id).then((err, user) => {
+    done(err, user);
+  });
+});

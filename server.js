@@ -27,6 +27,7 @@ require("./routes/settings")(app);
 // db connection
 const DB_URI = process.env.MONGOLAB_URI;
 console.log(`Connecting to database:  ${DB_URI}`);
+mongoose.set('useFindAndModify', false);
 mongoose.connect(DB_URI, { useUnifiedTopology: true, useNewUrlParser: true });
 // run server
 const SERVER_PORT = process.env.SERVER_PORT || 3030;

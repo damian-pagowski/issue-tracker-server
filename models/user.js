@@ -5,7 +5,6 @@ const { hash, compare, compareSync } = require("bcryptjs");
 const userSchema = new Schema({
   email: { type: String, required: true },
   password: { type: String, required: true },
-  refreshToken: { type: String, required: false },
   displayName: { type: String, required: false },
   defaultProject: { type: String, required: false, default: "test" },
 });
@@ -19,6 +18,10 @@ userSchema.static("createUser", function(newUser) {
     newUser.password = hash;
     return newUser.save();
   });
+});
+
+userSchema.static("hashPassword", function(password) {
+  return hash(password, 10);
 });
 
 module.exports = mongoose.model("User", userSchema);
