@@ -2,8 +2,12 @@ const passport = require("passport");
 const LocalStrategy = require("passport-local").Strategy;
 const JWTstrategy = require("passport-jwt").Strategy;
 const ExtractJWT = require("passport-jwt").ExtractJwt;
-
+const GitHubStrategy = require("passport-github").Strategy;
 const TOKEN_SECRET = process.env.ACCES_TOKEN_SECRET;
+const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
+const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
+const GITHUB_CB_URL = process.env.GITHUB_CB_URL;
+
 const Users = require("../models/user");
 
 passport.use(
@@ -53,7 +57,8 @@ passport.use(
       try {
         Users.findOne({ email: req.body.email }).then(user => {
           if (user === null) {
-            return done(null, false, { message: "invalid username" });
+            console.log("invalid email");
+            return done(null, false, { message: "invalid email" });
           }
 
           user.verifyPassword(password).then(response => {
@@ -84,7 +89,7 @@ passport.use(
     try {
       Users.findById(jwt_payload.id).then(user => {
         if (user) {
-          console.log("user found in db in passport");
+          console.log("user found in db");
           done(null, user);
         } else {
           console.log("user not found in db");
@@ -97,10 +102,30 @@ passport.use(
   })
 );
 
+passport.use(
+  new GitHubStrategy(
+    {
+      clientID: GITHUB_CLIENT_ID,
+      clientSecret: GITHUB_CLIENT_SECRET,
+      callbackURL: GITHUB_CB_URL,
+    },
+    function(accessToken, refreshToken, profile, done) {
+      const email = profile.emails[0].value;
+      Users.findOne({ email })
+        .then(user => {
+          if (user) {
+            return done(null, user);
+          } else {
+            return done(null, false, "user not found");
+          }
+        })
+        .catch(error => done(error, null));
+    }
+  )
+);
+
 passport.serializeUser((user, done) => done(null, user.id));
 
-passport.deserializeUser((id, done) => {
-  Users.findById(jwt_payload.id).then((err, user) => {
-    done(err, user);
-  });
-});
+passport.deserializeUser((id, done) =>
+  Users.findById(jwt_payload.id).then((err, user) => done(err, user))
+);

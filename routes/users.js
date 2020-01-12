@@ -65,7 +65,11 @@ module.exports = app => {
                 email: data.email,
               }).then(user => {
                 console.log("registration > user created in DB: " + user);
-                res.status(200).send({ message: "user created", data: user });
+                res.status(200).send({
+                  id: user._id,
+                  defaultProject: user.defaultProject,
+                  email: user.email,
+                });
               });
             });
           }
@@ -155,5 +159,33 @@ module.exports = app => {
           }
         }
       )(req, res, next);
+    })
+    .get("/auth/github", passport.authenticate("github"))
+    .get("/auth/github/callback", (req, res, next) => {
+      passport.authenticate("github", async (err, user, info) => {
+        console.error("github oauth > error > " + JSON.stringify(error));
+        console.error("github oauth > user > " + JSON.stringify(user));
+        console.error("github oauth > info > " + JSON.stringify(info));
+        if (err) {
+          console.error(err);
+        }
+        if (user) {
+          console.log("github oauth. user found in db");
+          const token = jwt.sign({ id: user.id }, TOKEN_SECRET, {
+            expiresIn: TOKEN_VALID_TIME,
+          });
+          res.status(200).send({
+            auth: true,
+            id: user._id,
+            token,
+            message: "authenticated",
+          });
+        } else {
+          const errorMessage =
+            info && info.message ? info.message : "User not found";
+          console.error("INFO ERROR > " + errorMessage);
+          res.status(403).send(errorMessage);
+        }
+      })(req, res, next);
     });
 };
