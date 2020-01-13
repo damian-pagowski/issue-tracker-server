@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken");
 const Users = require("../models/user");
 const { check } = require("express-validator");
 const passport = require("passport");
+const fetch = require("node-fetch");
 
 const TOKEN_VALID_TIME = 60 * 60;
 const TOKEN_SECRET = process.env.ACCES_TOKEN_SECRET;
@@ -31,10 +32,9 @@ module.exports = app => {
             expiresIn: TOKEN_VALID_TIME,
           });
           res.status(200).send({
-            auth: true,
+            email: user.email,
             id: user._id,
             token,
-            message: "authenticated",
           });
         } catch (error) {
           next(error);
@@ -160,32 +160,78 @@ module.exports = app => {
         }
       )(req, res, next);
     })
-    .get("/auth/github", passport.authenticate("github"))
-    .get("/auth/github/callback", (req, res, next) => {
-      passport.authenticate("github", async (err, user, info) => {
-        console.error("github oauth > error > " + JSON.stringify(error));
-        console.error("github oauth > user > " + JSON.stringify(user));
-        console.error("github oauth > info > " + JSON.stringify(info));
-        if (err) {
-          console.error(err);
-        }
-        if (user) {
-          console.log("github oauth. user found in db");
-          const token = jwt.sign({ id: user.id }, TOKEN_SECRET, {
-            expiresIn: TOKEN_VALID_TIME,
-          });
-          res.status(200).send({
-            auth: true,
-            id: user._id,
-            token,
-            message: "authenticated",
-          });
+    .post("/auth/github/token", async (req, res, next) => {
+      const { code } = req.body;
+      console.log("code: " + code);
+      let error;
+      if (code) {
+        const access_token = await exchangeCodeToGithubToken(code);
+        if (access_token) {
+          const userProfile = await retrieveUserProfile(access_token);
+          if (userProfile) {
+            email = userProfile.email;
+            console.log("email: " + email);
+
+            const user = await Users.findOne({ email });
+            console.log("user: " + JSON.stringify(user));
+
+            if (user) {
+              console.log("github oauth. user found in db");
+              const token = jwt.sign({ id: user.id }, TOKEN_SECRET, {
+                expiresIn: TOKEN_VALID_TIME,
+              });
+              res.status(200).send({
+                email: user.email,
+                id: user._id,
+                token,
+              });
+            } else {
+              error = "User not found in DB";
+            }
+          } else {
+            error = "Cannot get user profile from Github";
+          }
         } else {
-          const errorMessage =
-            info && info.message ? info.message : "User not found";
-          console.error("INFO ERROR > " + errorMessage);
-          res.status(403).send(errorMessage);
+          error = "Cannot retrieve access token from Github";
         }
-      })(req, res, next);
+      }
+      if (error) {
+        res.status(400).json({ error });
+      }
     });
 };
+async function retrieveUserProfile(access_token) {
+  const url_user_profile = "https://api.github.com/user";
+  const userProfile = await fetch(url_user_profile, {
+    headers: {
+      Authorization: `token ${access_token}`,
+      Accept: "application/json",
+    },
+  })
+    .then(res => res.json())
+    .then(json => {
+      console.log(json);
+      return json;
+    });
+  return userProfile;
+}
+
+async function exchangeCodeToGithubToken(code) {
+  const client_id = process.env.GITHUB_CLIENT_ID;
+  const client_secret = process.env.GITHUB_CLIENT_SECRET;
+  const url_get_token = "https://github.com/login/oauth/access_token";
+  const body = { code, client_id, client_secret };
+  const access_token = await fetch(url_get_token, {
+    method: "POST",
+    body: JSON.stringify(body),
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+  })
+    .then(res => res.json())
+    .then(json => {
+      return json.access_token;
+    });
+  return access_token;
+}
